@@ -1,14 +1,10 @@
 package prodsmartjavarestclient;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
 /**
  *
@@ -16,135 +12,143 @@ import org.json.simple.parser.JSONParser;
  */
 public class ProdsmartJavaRESTClient {
 
-    public class response {
+  // API Key and API Secret can be found at user profile inside Prodsmart
+  private static final String apiKey = "YOUR API KEY";
+  private static final String apiSecret = "YOUR API SECRET";
+  private static final String authorizationRequest = "{ \"scopes\": [ \"productions_write\" ] }";
 
-        public JSONObject object;
-        public int status;
+  public static void getRequest(String appUrl, String urlTo, String token, String parameters) {
+    try {
+      String tokenAndParam = parameters != null ? token + parameters : token;
+      URL url = new URL(appUrl + urlTo + "?" + tokenAndParam);
+      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
+      Response response = new Response(connection);
+      System.out.println("GET: " + urlTo);
+      System.out.println("Request status: " + response.statusCode);
+      if (response.data != null) {
+        System.out.println("Request body: " + response.data);
+      } else if (response.dataArray != null) {
+        System.out.println("Request body: " + response.dataArray);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
     }
+  }
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String[] args) {
+  public static void postRequest(String appUrl, String urlTo, String token, String parameters, String body) {
+    try {
+      String tokenAndParam = parameters != null ? token + parameters : token;
+      URL url = new URL(appUrl + urlTo + "?" + tokenAndParam);
+      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection.setDoOutput(true);
 
-        String apiKey = "";
-        String apiSecret = "";
-        String appUrl = "app.prodsmart.com";
-        
-        String authorizationRequest = "{ \"scopes\": [ \"productions_write\" ] }";
+      OutputStreamWriter w = new OutputStreamWriter(connection.getOutputStream());
+      w.write(body);
+      w.flush();
 
-        JSONObject worker1 = new JSONObject();
-        worker1.put("number", "1");
-        worker1.put("name", "John Doe");
-        worker1.put("entry_time", "07:00");
-        worker1.put("entry_time", "17:00");
-
-        JSONObject worker2 = new JSONObject();
-        worker2.put("number", "12");
-        worker2.put("name", "Jamie Duke");
-        worker2.put("entry_time", "07:00");
-        worker2.put("entry_time", "17:00");
-
-        JSONObject product = new JSONObject();
-        product.put("code", "productCode");
-        product.put("name", "productName");
-
-        JSONObject position = new JSONObject();
-        position.put("code", "positionCode");
-        position.put("name", "positionName");
-        position.put("product", product);
-        position.put("task_duration", "00H15");
-        position.put("quantity_ratio", "1");
-
-        JSONObject productionOrder = new JSONObject();
-        JSONArray products = new JSONArray();
-        JSONObject productionOrderProduct = new JSONObject();
-        productionOrderProduct.put("product", product);
-        productionOrderProduct.put("quantity", "1000");
-        productionOrderProduct.put("note", "");
-        products.add(productionOrderProduct);
-        productionOrder.put("products", products);
-        productionOrder.put("code", "productionOrderCode");
-        productionOrder.put("description", "description for this production order");
-        productionOrder.put("start_date", "2014-04-01T02:15:15Z");
-        productionOrder.put("end_date", "2014-04-25T22:15:15Z");
-        JSONArray workersAssigned = new JSONArray();
-        workersAssigned.add(worker1);
-        workersAssigned.add(worker2);
-        productionOrder.put("workers_assigned", workersAssigned);
-
-        JSONObject waste = new JSONObject();
-        waste.put("code", "wasteCode1");
-        waste.put("description", "waste 1 description");
-        waste.put("flaw", "waste type");
-        waste.put("quantity", "1");
-
-        JSONObject production = new JSONObject();
-        production.put("start_time", "2014-04-14T10:15:15Z");
-        production.put("end_time", "2014-04-14T12:20:15Z");
-        production.put("production_order", productionOrder);
-        production.put("position", position);
-        production.put("quantity", "4");
-        production.put("worker", worker1);
-        JSONArray wasteList = new JSONArray();
-        wasteList.add(waste);
-        production.put("waste", wasteList);
-
-        
-        try {
-
-            //create authorization
-            URL authUrl = new URL("http://"+appUrl+"/api/authorization");
-            String key = apiKey + ":" + apiSecret;
-            String encoding = new sun.misc.BASE64Encoder().encode(key.getBytes());
-
-            HttpURLConnection authConnection =(HttpURLConnection) authUrl.openConnection();
-            authConnection.setRequestProperty("Authorization", "Basic " + encoding);
-            authConnection.setDoOutput(true);
-            OutputStreamWriter wr = new OutputStreamWriter(authConnection.getOutputStream());
-            wr.write(authorizationRequest);
-            wr.flush();
-            int code = authConnection.getResponseCode();
-            System.out.println("Auth request status: "+code);
-
-            // Get the response
-            BufferedReader rd = new BufferedReader(new InputStreamReader(authConnection.getInputStream()));
-            String data = "";
-            String line;
-            while ((line = rd.readLine()) != null) {
-                data += line;
-            }
-            wr.close();
-            rd.close();
-            
-            //get the token
-            JSONParser jsonParser = new JSONParser();
-            JSONObject authorization = (JSONObject) jsonParser.parse(data);
-            String token = authorization.get("token").toString();
-            
-            if(token!=null && !token.isEmpty()){
-                //post production
-                URL url = new URL("http://"+appUrl+"/api/production?"+token);
-                HttpURLConnection connection =(HttpURLConnection) url.openConnection();
-                connection.setDoOutput(true);
-                OutputStreamWriter writer2 = new OutputStreamWriter(connection.getOutputStream());
-                writer2 = new OutputStreamWriter(connection.getOutputStream());
-                writer2.write(production.toJSONString());
-                writer2.flush();
-                code = connection.getResponseCode();
-                System.out.println("Request status: "+code);
-                writer2.close();
-            }
-            else{
-                System.out.print("AuthResponse didn't have a token");
-            }
-            
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+      Response response = new Response(connection);
+      System.out.println("POST: " + urlTo);
+      System.out.println("Request status: " + response.statusCode);
+      if (response.data != null) {
+        System.out.println("Request body: " + response.data);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
     }
+  }
 
+  public static void deleteRequest(String appUrl, String urlTo, String token, String parameters) {
+    try {
+      String tokenAndParam = parameters != null ? token + parameters : token;
+      URL url = new URL(appUrl + urlTo + "?" + tokenAndParam);
+      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection.setRequestMethod("DELETE");
+      connection.connect();
+
+      Response response = new Response(connection);
+      System.out.println("DELETE: " + urlTo);
+      System.out.println("Request status: " + response.statusCode);
+      if (response.data != null) {
+        System.out.println("Request body: " + response.data);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  public static String authRequest(String appUrl) {
+    String accessToken = null;
+    try {
+      URL authUrl = new URL(appUrl + "/api/authorization");
+      String key = apiKey + ":" + apiSecret;
+      // Encode the key using Base 64
+      String encoding = new sun.misc.BASE64Encoder().encode(key.getBytes());
+
+      HttpURLConnection connection = (HttpURLConnection) authUrl.openConnection();
+      connection.setRequestProperty("Authorization", "Basic " + encoding);
+      connection.setDoOutput(true);
+
+      Response response = new Response(connection);
+      System.out.println("Request status: " + response.statusCode);
+      accessToken = response.data.get("token").toString();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return accessToken;
+  }
+
+  /**
+   * @param args the command line arguments
+   */
+  public static void main(String[] args) {
+    String appUrl = "https://app.prodsmart.com";
+
+    // Example JSON Data to create a Production Order via API
+    //   The Workers, and Products used must exist in the system before
+    //   creating Production Orders using them
+    JSONObject worker1 = new JSONObject();
+    worker1.put("number", "1");
+    JSONObject worker2 = new JSONObject();
+    worker2.put("number", "2");
+
+    JSONObject productionOrderProduct = new JSONObject();
+    productionOrderProduct.put("product", "Prod1");
+    productionOrderProduct.put("quantity-ordered", "500");
+    productionOrderProduct.put("observations", "");
+    JSONArray products = new JSONArray();
+    products.add(productionOrderProduct);
+    JSONArray workersAssigned = new JSONArray();
+    workersAssigned.add(worker1);
+    workersAssigned.add(worker2);
+
+    JSONObject productionOrder = new JSONObject();
+    productionOrder.put("products", products);
+    productionOrder.put("code", "V23076 - Week 47");
+    productionOrder.put("description", "");
+    productionOrder.put("notes", "");
+    productionOrder.put("start-date", "2017-04-01T02:15:15Z");
+    productionOrder.put("due-date", "2017-04-25T22:15:15Z");
+    productionOrder.put("workers-assigned", workersAssigned);
+
+    try {
+      // Create authorization
+      String accessToken = authRequest(appUrl);
+
+      if (accessToken == null) {
+        System.out.print("No valid accesToken was obtained.");
+        return;
+      }
+
+      // Example API Requests
+      // 1) List Production Orders
+      getRequest(appUrl, "/api/production-orders/", accessToken, "");
+
+      // 2) Create a Production Order
+      postRequest(appUrl, "/api/production-orders/", accessToken, "", productionOrder.toJSONString());
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
 }
